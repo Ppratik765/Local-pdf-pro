@@ -1,7 +1,7 @@
 # Local-pdf-pro
 A powerful, offline desktop application that mimics the functionality of iLovePDF. Built with Python and PyQt6, this tool processes everything locally on your machine, ensuring your data never leaves your computer.
 
-## 🚀 Features
+## Features
 
 **Organize & Edit**
 - **Merge PDF:** Combine multiple PDFs into a single file.
@@ -21,7 +21,7 @@ A powerful, offline desktop application that mimics the functionality of iLovePD
 **Security**
 - **Protect PDF:** Encrypt your documents with a password.
 
-## 🛠️ Installation & Setup
+## Installation & Setup
 
 ### 1. Install Python Dependencies
 Run the following command in your terminal:
@@ -45,7 +45,7 @@ Microsoft Word is required for Word -> PDF conversion.
 
 Microsoft PowerPoint is required for PowerPoint -> PDF conversion.
 
-## 🏃‍♂️ How to Run
+## How to Run
 Ensure main.py and pdf_engine.py are in the same directory.
 
 Run the application:
