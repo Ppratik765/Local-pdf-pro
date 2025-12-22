@@ -3,26 +3,26 @@ import os
 import threading
 import tempfile
 import shutil
+import webbrowser
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QListWidget, 
                              QStackedWidget, QFileDialog, QMessageBox, QFrame,
                              QListWidgetItem, QAbstractItemView, QInputDialog, 
                              QLineEdit, QScrollArea, QComboBox, QRadioButton,
                              QButtonGroup, QMenu)
-from PyQt6.QtCore import Qt, pyqtSignal, QObject, QSize, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QSize
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QIcon, QFont, QPixmap, QKeyEvent, QAction
 from pdf2image import convert_from_path
 
 # Import backend engine
 from pdf_engine import PDFEngine
 
-# --- MODERN STYLESHEET ---
+# --- MODERN STYLESHEET (Preserved) ---
 STYLESHEET = """
-QMainWindow { background-color: #181825; } /* Darker background */
+QMainWindow { background-color: #181825; }
 QFrame#Sidebar { background-color: #1e1e2e; border-right: 1px solid #313244; }
 QLabel { color: #cdd6f4; font-family: 'Segoe UI', sans-serif; }
 
-/* File List Styles */
 QListWidget {
     background-color: #1e1e2e; 
     border: 2px dashed #45475a; 
@@ -39,14 +39,11 @@ QListWidget::item {
     background-color: #313244;
 }
 QListWidget::item:selected {
-    background-color: #f38ba8; /* Pink highlight */
+    background-color: #f38ba8;
     color: #181825;
 }
-QListWidget::item:hover {
-    background-color: #45475a;
-}
+QListWidget::item:hover { background-color: #45475a; }
 
-/* Sidebar Navigation */
 QPushButton.nav-btn {
     background-color: transparent; 
     color: #a6adc8; 
@@ -60,12 +57,11 @@ QPushButton.nav-btn {
 QPushButton.nav-btn:hover { background-color: #313244; color: white; }
 QPushButton.nav-btn:checked { 
     background-color: #313244; 
-    color: #89b4fa; /* Blue accent */
+    color: #89b4fa;
     border-left: 3px solid #89b4fa;
     font-weight: bold; 
 }
 
-/* Primary Action Buttons */
 QPushButton.action-btn {
     background-color: #89b4fa; 
     color: #181825; 
@@ -78,7 +74,6 @@ QPushButton.action-btn {
 QPushButton.action-btn:hover { background-color: #b4befe; }
 QPushButton.action-btn:disabled { background-color: #45475a; color: #6c7086; }
 
-/* Secondary Buttons */
 QPushButton.upload-btn {
     background-color: #313244; 
     color: #cdd6f4; 
@@ -89,19 +84,11 @@ QPushButton.upload-btn {
 }
 QPushButton.upload-btn:hover { background-color: #45475a; border-color: #585b70; }
 
-/* Inputs */
-QLineEdit {
+QLineEdit, QComboBox {
     background-color: #313244; 
     border: 1px solid #45475a; 
     color: white; 
     padding: 8px; 
-    border-radius: 4px;
-}
-QComboBox {
-    background-color: #313244;
-    border: 1px solid #45475a;
-    color: white;
-    padding: 5px;
     border-radius: 4px;
 }
 """
@@ -129,7 +116,7 @@ class TaskWorker(threading.Thread):
         except Exception as e:
             self.signals.error.emit(str(e))
 
-# --- CUSTOM WIDGETS ---
+# --- WIDGETS ---
 class FileDropList(QListWidget):
     def __init__(self, allowed_exts=('.pdf',)):
         super().__init__()
@@ -159,7 +146,6 @@ class FileDropList(QListWidget):
             item = QListWidgetItem(os.path.basename(file_path))
             item.setToolTip(file_path)
             item.setData(Qt.ItemDataRole.UserRole, file_path)
-            # Add simple icon logic or generic icon
             item.setIcon(QIcon.fromTheme("application-pdf")) 
             self.addItem(item)
 
@@ -186,10 +172,8 @@ class OrganizerGrid(QListWidget):
     def show_context_menu(self, pos):
         item = self.itemAt(pos)
         if not item: return
-        
         menu = QMenu(self)
         menu.setStyleSheet("QMenu { background-color: #313244; color: white; } QMenu::item:selected { background: #89b4fa; color: black; }")
-        
         rotate_cw = QAction("Rotate Right (90°)", self)
         rotate_ccw = QAction("Rotate Left (-90°)", self)
         delete_page = QAction("Delete Page", self)
@@ -205,25 +189,15 @@ class OrganizerGrid(QListWidget):
         menu.exec(self.mapToGlobal(pos))
 
     def rotate_item(self, item, angle):
-        # Update logic to store rotation state
         current_rot = item.data(Qt.ItemDataRole.UserRole + 1) or 0
         new_rot = (current_rot + angle) % 360
         item.setData(Qt.ItemDataRole.UserRole + 1, new_rot)
-        
-        # Rotate the icon visually
+        # Visual rotation logic (simplified)
         icon = item.icon()
         pixmap = icon.pixmap(200, 200)
-        transform = QPixmap(pixmap)
         from PyQt6.QtGui import QTransform
         transform = pixmap.transformed(QTransform().rotate(angle))
         item.setIcon(QIcon(transform))
-
-    def keyPressEvent(self, event: QKeyEvent):
-        if event.key() == Qt.Key.Key_Delete:
-            for item in self.selectedItems():
-                self.takeItem(self.row(item))
-        else:
-            super().keyPressEvent(event)
 
 # --- BASE PAGE ---
 class BaseToolPage(QWidget):
@@ -235,7 +209,6 @@ class BaseToolPage(QWidget):
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(15)
         
-        # Header
         head_lbl = QLabel(title)
         head_lbl.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
         head_lbl.setStyleSheet("color: white;")
@@ -246,7 +219,6 @@ class BaseToolPage(QWidget):
         desc_lbl.setWordWrap(True)
         layout.addWidget(desc_lbl)
         
-        # Controls
         self.ctl_layout = QHBoxLayout()
         self.btn_upload = QPushButton("📂 Select Files")
         self.btn_upload.setProperty("class", "upload-btn")
@@ -262,12 +234,10 @@ class BaseToolPage(QWidget):
         self.ctl_layout.addStretch()
         layout.addLayout(self.ctl_layout)
 
-        # File List
         if use_grid: self.file_list = OrganizerGrid()
         else: self.file_list = FileDropList(allowed_exts)
         layout.addWidget(self.file_list)
         
-        # Bottom Action
         bot_layout = QHBoxLayout()
         self.btn_process = QPushButton(btn_text)
         self.btn_process.setProperty("class", "action-btn")
@@ -299,7 +269,7 @@ class BaseToolPage(QWidget):
         success_callback = kwargs.pop('success_callback', None)
         self.btn_process.setEnabled(False)
         self.btn_process.setText("Processing...")
-        self.lbl_status.setText("Working... Please wait.")
+        self.lbl_status.setText("Working...")
         
         self.worker = TaskWorker(func, *args, **kwargs)
         self.worker.signals.finished.connect(lambda _: self.on_worker_finished())
@@ -309,26 +279,22 @@ class BaseToolPage(QWidget):
         self.worker.start()
 
     def on_worker_finished(self):
-        self.lbl_status.setText("Task Completed Successfully!")
-        self.btn_process.setText("Process Completed")
+        self.lbl_status.setText("Success!")
+        self.btn_process.setText("Completed")
         self.btn_process.setEnabled(True)
-        # Reset after 3 seconds
         from PyQt6.QtCore import QTimer
-        QTimer.singleShot(3000, lambda: self.btn_process.setText(self.btn_process.text().replace(" Completed", "")))
+        QTimer.singleShot(3000, lambda: self.btn_process.setText("Process"))
 
     def on_worker_error(self, err):
-        self.lbl_status.setText("Error occurred.")
+        self.lbl_status.setText("Error.")
         self.btn_process.setText("Retry")
         self.btn_process.setEnabled(True)
-        QMessageBox.critical(self, "Error", f"An error occurred:\n{err}")
+        QMessageBox.critical(self, "Error", f"Details: {err}")
 
 # --- ENHANCED PAGES ---
-
 class OrganizePage(BaseToolPage):
     def __init__(self):
-        super().__init__("Visual Organizer", 
-                         "Reorder pages, rotate, or delete. Right-click pages for options.", 
-                         "Save PDF", use_grid=True)
+        super().__init__("Visual Organizer", "Reorder, rotate, or delete pages.", "Save PDF", use_grid=True)
         self.btn_upload.setText("📂 Load PDF")
         self.btn_upload.disconnect()
         self.btn_upload.clicked.connect(self.load_pdf_dialog)
@@ -343,23 +309,20 @@ class OrganizePage(BaseToolPage):
             self.file_list.clear()
             self.cleanup_temp()
             self.temp_dir = tempfile.mkdtemp()
-            self.lbl_status.setText("Generating Thumbnails (Fast Mode)...")
-            # Use Low DPI for fast thumbnail generation (UI only)
+            self.lbl_status.setText("Loading pages...")
             self.run_worker(PDFEngine.pdf_to_images, path, self.temp_dir, 40, "jpeg", success_callback=self.populate_grid)
 
     def populate_grid(self, image_paths):
         for i, img_path in enumerate(image_paths):
             item = QListWidgetItem(f"Page {i+1}")
-            item.setData(Qt.ItemDataRole.UserRole, i) # Store ORIGINAL Page Index
-            item.setData(Qt.ItemDataRole.UserRole + 1, 0) # Store Rotation
+            item.setData(Qt.ItemDataRole.UserRole, i) 
+            item.setData(Qt.ItemDataRole.UserRole + 1, 0)
             item.setIcon(QIcon(img_path))
             self.file_list.addItem(item)
         self.lbl_status.setText(f"Loaded {len(image_paths)} pages.")
 
     def save_pdf(self):
         if not self.current_pdf_path or self.file_list.count() == 0: return
-        
-        # Collect new order and rotations
         page_order_data = []
         for i in range(self.file_list.count()):
             item = self.file_list.item(i)
@@ -367,7 +330,6 @@ class OrganizePage(BaseToolPage):
                 'original_index': item.data(Qt.ItemDataRole.UserRole),
                 'rotation': item.data(Qt.ItemDataRole.UserRole + 1)
             })
-
         save_path, _ = QFileDialog.getSaveFileName(self, "Save PDF", "organized.pdf", "PDF (*.pdf)")
         if save_path: 
             self.run_worker(PDFEngine.reorder_save_pdf, self.current_pdf_path, save_path, page_order_data)
@@ -379,60 +341,65 @@ class OrganizePage(BaseToolPage):
 
 class SplitPage(BaseToolPage):
     def __init__(self):
-        super().__init__("Split PDF", "Split into single pages or extract specific ranges.")
+        super().__init__("Split PDF", "Split all pages or extract ranges (e.g., '1-5, 8').")
         self.file_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        
-        # Split Options
         self.opts_layout = QHBoxLayout()
-        self.rb_all = QRadioButton("Split All Pages")
-        self.rb_range = QRadioButton("Split by Range")
-        self.rb_extract = QRadioButton("Extract Range to One PDF")
+        self.rb_all = QRadioButton("Split All")
+        self.rb_range = QRadioButton("Split Range")
+        self.rb_extract = QRadioButton("Extract Range")
         self.rb_all.setChecked(True)
-        
         self.bg = QButtonGroup()
         self.bg.addButton(self.rb_all)
         self.bg.addButton(self.rb_range)
         self.bg.addButton(self.rb_extract)
-        
         self.opts_layout.addWidget(self.rb_all)
         self.opts_layout.addWidget(self.rb_range)
         self.opts_layout.addWidget(self.rb_extract)
-        
         self.range_input = QLineEdit()
-        self.range_input.setPlaceholderText("e.g., 1-5, 8, 10-12")
+        self.range_input.setPlaceholderText("e.g. 1-5, 8")
         self.range_input.setVisible(False)
         self.opts_layout.addWidget(self.range_input)
-        
-        # Toggle Input visibility
         self.bg.buttonClicked.connect(lambda: self.range_input.setVisible(not self.rb_all.isChecked()))
-        
         self.ctl_layout.addLayout(self.opts_layout)
         self.btn_process.clicked.connect(self.action)
 
     def action(self):
         files = self.get_files()
         if not files: return
-        
         mode = "all"
         if self.rb_extract.isChecked(): mode = "extract"
-        
         page_range = self.range_input.text() if not self.rb_all.isChecked() else None
-        
-        folder = QFileDialog.getExistingDirectory(self, "Select Output Folder")
-        if folder: 
-            self.run_worker(PDFEngine.split_pdf, files[0], folder, mode, page_range)
+        folder = QFileDialog.getExistingDirectory(self, "Output Folder")
+        if folder: self.run_worker(PDFEngine.split_pdf, files[0], folder, mode, page_range)
 
 class CompressPage(BaseToolPage):
     def __init__(self):
-        super().__init__("Compress PDF", "Reduce file size. 'Extreme' will rasterize pages (text becomes image).", "Compress")
-        
-        lbl = QLabel("Compression Level:")
+        super().__init__("Compress PDF", "Reduce file size.", "Compress")
+        lbl = QLabel("Level:")
         lbl.setStyleSheet("color: white;")
         self.combo = QComboBox()
         self.combo.addItems(["Low (Lossless)", "Medium (Optimized)", "Extreme (Rasterize)"])
-        
         self.ctl_layout.addWidget(lbl)
         self.ctl_layout.addWidget(self.combo)
+        self.btn_process.clicked.connect(self.action)
+    def action(self):
+        files = self.get_files()
+        if not files: return
+        level_map = {0: "low", 1: "medium", 2: "extreme"}
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save", "compressed.pdf", "PDF (*.pdf)")
+        if save_path: self.run_worker(PDFEngine.compress_pdf, files[0], save_path, level_map[self.combo.currentIndex()])
+
+class ProtectPage(BaseToolPage):
+    def __init__(self):
+        super().__init__("Protect PDF", "Encrypt PDF with password and algorithm.", "Encrypt")
+        
+        lbl_algo = QLabel("Encryption:")
+        lbl_algo.setStyleSheet("color: white;")
+        self.combo_algo = QComboBox()
+        self.combo_algo.addItems(["AES-256 (Strongest)", "AES-128 (Standard)", "RC4-128 (Legacy)"])
+        
+        self.ctl_layout.addWidget(lbl_algo)
+        self.ctl_layout.addWidget(self.combo_algo)
         
         self.btn_process.clicked.connect(self.action)
 
@@ -440,71 +407,77 @@ class CompressPage(BaseToolPage):
         files = self.get_files()
         if not files: return
         
-        level_map = {0: "low", 1: "medium", 2: "extreme"}
-        level = level_map[self.combo.currentIndex()]
-        
-        save_path, _ = QFileDialog.getSaveFileName(self, "Save Compressed", "compressed.pdf", "PDF (*.pdf)")
-        if save_path:
-             self.run_worker(PDFEngine.compress_pdf, files[0], save_path, level)
+        pwd, ok = QInputDialog.getText(self, "Password", "Enter Password:", QLineEdit.EchoMode.Password)
+        if ok and pwd:
+            algo_map = {0: "AES-256", 1: "AES-128", 2: "RC4-128"}
+            selected_algo = algo_map[self.combo_algo.currentIndex()]
+            
+            save_path, _ = QFileDialog.getSaveFileName(self, "Save", "protected.pdf", "PDF (*.pdf)")
+            if save_path: 
+                self.run_worker(PDFEngine.protect_pdf, files[0], save_path, pwd, selected_algo)
 
-# --- STANDARD PAGES ---
-class MergePage(BaseToolPage):
+class OpenProtectedPage(BaseToolPage):
     def __init__(self):
-        super().__init__("Merge PDF", "Combine multiple PDFs into one.")
+        super().__init__("Open Protected PDF", "Enter password to view secure PDF in default viewer.", "Unlock & Open")
+        self.file_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.btn_process.clicked.connect(self.action)
+        self.temp_file = None
+
     def action(self):
         files = self.get_files()
-        if len(files) < 2: return QMessageBox.warning(self, "Info", "Select 2+ files.")
-        save_path, _ = QFileDialog.getSaveFileName(self, "Save Merged", "merged.pdf", "PDF (*.pdf)")
-        if save_path: self.run_worker(PDFEngine.merge_pdfs, files, save_path)
+        if not files: return
+        
+        pwd, ok = QInputDialog.getText(self, "Password", "Enter PDF Password:", QLineEdit.EchoMode.Password)
+        if not ok or not pwd: return
+
+        # Create temp path
+        fd, self.temp_file = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        
+        self.run_worker(PDFEngine.unlock_pdf, files[0], self.temp_file, pwd, success_callback=self.open_in_viewer)
+
+    def open_in_viewer(self, path):
+        try:
+            webbrowser.open(path)
+            self.lbl_status.setText("Opened in default viewer.")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open file: {e}")
+
+# --- SIMPLE WRAPPERS ---
+class MergePage(BaseToolPage):
+    def __init__(self):
+        super().__init__("Merge PDF", "Combine PDFs.")
+        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.merge_pdfs, self.get_files(), QFileDialog.getSaveFileName(self, "Save", "merged.pdf", "PDF (*.pdf)")[0]) if len(self.get_files()) > 1 else None)
 
 class ImgToPdfPage(BaseToolPage):
     def __init__(self):
-        super().__init__("Images to PDF", "Convert JPG/PNG to PDF.", "Convert", ('.jpg', '.png', '.jpeg'))
-        self.btn_process.clicked.connect(self.action)
-    def action(self):
-        files = self.get_files()
-        if not files: return
-        save_path, _ = QFileDialog.getSaveFileName(self, "Save PDF", "images.pdf", "PDF (*.pdf)")
-        if save_path: self.run_worker(PDFEngine.images_to_pdf, files, save_path)
+        super().__init__("Images to PDF", "JPG/PNG to PDF.", "Convert", ('.jpg', '.png'))
+        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.images_to_pdf, self.get_files(), QFileDialog.getSaveFileName(self, "Save", "img.pdf", "PDF (*.pdf)")[0]) if self.get_files() else None)
 
 class PdfToImgPage(BaseToolPage):
     def __init__(self):
-        super().__init__("PDF to JPG", "Extract pages as JPEG images.", "Extract")
-        self.btn_process.clicked.connect(self.action)
-    def action(self):
-        files = self.get_files()
-        if not files: return
-        folder = QFileDialog.getExistingDirectory(self, "Select Output Folder")
-        if folder: self.run_worker(PDFEngine.pdf_to_images, files[0], folder)
+        super().__init__("PDF to JPG", "Extract pages as JPG.", "Extract")
+        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.pdf_to_images, self.get_files()[0], QFileDialog.getExistingDirectory(self, "Output Folder")) if self.get_files() else None)
 
-# --- OTHER PLACEHOLDERS (Functionality same as before, UI updated via inheritance) ---
 class PdfToWordPage(BaseToolPage):
     def __init__(self):
-        super().__init__("PDF to Word", "Convert PDF to Docx.", "Convert")
-        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.pdf_to_word, self.get_files()[0], QFileDialog.getSaveFileName(self, "Save", "conv.docx", "Word (*.docx)")[0]) if self.get_files() else None)
+        super().__init__("PDF to Word", "Convert to Docx.")
+        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.pdf_to_word, self.get_files()[0], QFileDialog.getSaveFileName(self, "Save", "c.docx", "Word (*.docx)")[0]) if self.get_files() else None)
 
 class WordToPdfPage(BaseToolPage):
     def __init__(self):
         super().__init__("Word to PDF", "Convert Docx to PDF.", "Convert", ('.docx',))
-        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.word_to_pdf, self.get_files()[0], QFileDialog.getSaveFileName(self, "Save", "conv.pdf", "PDF (*.pdf)")[0]) if self.get_files() else None)
+        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.word_to_pdf, self.get_files()[0], QFileDialog.getSaveFileName(self, "Save", "c.pdf", "PDF (*.pdf)")[0]) if self.get_files() else None)
 
 class PptxToPdfPage(BaseToolPage):
     def __init__(self):
-        super().__init__("PowerPoint to PDF", "Convert PPTX to PDF.", "Convert", ('.pptx',))
-        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.pptx_to_pdf, self.get_files()[0], QFileDialog.getSaveFileName(self, "Save", "conv.pdf", "PDF (*.pdf)")[0]) if self.get_files() else None)
+        super().__init__("PPT to PDF", "Convert PPTX to PDF.", "Convert", ('.pptx',))
+        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.pptx_to_pdf, self.get_files()[0], QFileDialog.getSaveFileName(self, "Save", "c.pdf", "PDF (*.pdf)")[0]) if self.get_files() else None)
 
-class ProtectPage(BaseToolPage):
+class PdfToPptxPage(BaseToolPage):
     def __init__(self):
-        super().__init__("Protect PDF", "Encrypt PDF with password.", "Encrypt")
-        self.btn_process.clicked.connect(self.action)
-    def action(self):
-        files = self.get_files()
-        if not files: return
-        pwd, ok = QInputDialog.getText(self, "Password", "Enter Password:", QLineEdit.EchoMode.Password)
-        if ok and pwd:
-            save_path, _ = QFileDialog.getSaveFileName(self, "Save", "protected.pdf", "PDF (*.pdf)")
-            if save_path: self.run_worker(PDFEngine.protect_pdf, files[0], save_path, pwd)
+        super().__init__("PDF to PPT", "Convert PDF to Slides.")
+        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.pdf_to_pptx, self.get_files()[0], QFileDialog.getSaveFileName(self, "Save", "c.pptx", "PPTX (*.pptx)")[0]) if self.get_files() else None)
 
 # --- MAIN WINDOW ---
 class MainWindow(QMainWindow):
@@ -520,7 +493,6 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 1. Sidebar
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
         self.sidebar.setFixedWidth(280)
@@ -529,12 +501,10 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(10, 30, 10, 20)
         sidebar_layout.setSpacing(5)
 
-        # Title
         title_lbl = QLabel("  PDF TOOLKIT")
         title_lbl.setStyleSheet("font-size: 18px; font-weight: bold; color: #89b4fa; margin-bottom: 20px;")
         sidebar_layout.addWidget(title_lbl)
 
-        # Scroll Area for Nav
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("background: transparent; border: none;")
@@ -546,27 +516,30 @@ class MainWindow(QMainWindow):
         scroll.setWidget(nav_content)
         sidebar_layout.addWidget(scroll)
 
-        # 2. Main Stack
         self.stack = QStackedWidget()
-        
-        # Build Menu
         self.btns = []
-        self.add_section("FAVORITES")
+        
+        # --- NEW MENU STRUCTURE ---
+        self.add_section("MOST USED")
         self.add_nav("Merge PDF", MergePage())
         self.add_nav("Visual Organize", OrganizePage())
+        self.add_nav("Split PDF", SplitPage())
         self.add_nav("Compress PDF", CompressPage())
         
-        self.add_section("CONVERT")
-        self.add_nav("Split PDF", SplitPage())
+        self.add_section("CONVERT TO PDF")
         self.add_nav("Images to PDF", ImgToPdfPage())
-        self.add_nav("PDF to JPG", PdfToImgPage())
         self.add_nav("Word to PDF", WordToPdfPage())
-        self.add_nav("PDF to Word", PdfToWordPage())
         self.add_nav("PowerPoint to PDF", PptxToPdfPage())
+        
+        self.add_section("CONVERT FROM PDF")
+        self.add_nav("PDF to JPG", PdfToImgPage())
+        self.add_nav("PDF to Word", PdfToWordPage())
+        self.add_nav("PDF to PowerPoint", PdfToPptxPage())
         
         self.add_section("SECURITY")
         self.add_nav("Protect PDF", ProtectPage())
-        
+        self.add_nav("Open Protected PDF", OpenProtectedPage())
+
         self.nav_layout.addStretch()
         
         layout.addWidget(self.sidebar)
@@ -587,7 +560,6 @@ class MainWindow(QMainWindow):
         btn.clicked.connect(lambda: self.switch_view(idx, btn))
         self.nav_layout.addWidget(btn)
         self.btns.append(btn)
-        
         if len(self.btns) == 1: btn.click()
 
     def switch_view(self, idx, active_btn):
