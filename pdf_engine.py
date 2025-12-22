@@ -7,7 +7,7 @@ from docx2pdf import convert as docx_convert
 from PIL import Image
 import comtypes.client
 from pptx import Presentation
-import pikepdf  # Added for better compression
+import pikepdf
 
 class PDFEngine:
     @staticmethod
@@ -20,15 +20,10 @@ class PDFEngine:
 
     @staticmethod
     def split_pdf(input_path, output_folder, mode="all", page_range=None):
-        """
-        mode: 'all' (separate files), 'extract' (one file with selected pages)
-        page_range: string like "1-5, 8, 10-12" or list of integers (0-based)
-        """
         reader = PdfReader(input_path)
         base_name = os.path.splitext(os.path.basename(input_path))[0]
         total_pages = len(reader.pages)
         
-        # Parse Range
         selected_indices = []
         if page_range:
             try:
@@ -41,12 +36,11 @@ class PDFEngine:
                         selected_indices.append(int(p)-1)
                 selected_indices = [i for i in selected_indices if 0 <= i < total_pages]
             except:
-                pass # Fallback or error handling
+                pass 
         else:
             selected_indices = list(range(total_pages))
 
         if mode == "all":
-            # Split every page (or selected pages) into individual files
             for i in selected_indices:
                 writer = PdfWriter()
                 writer.add_page(reader.pages[i])
@@ -55,7 +49,6 @@ class PDFEngine:
                     writer.write(f)
         
         elif mode == "extract":
-            # Combine selected pages into ONE file
             writer = PdfWriter()
             for i in selected_indices:
                 writer.add_page(reader.pages[i])
@@ -65,34 +58,26 @@ class PDFEngine:
 
     @staticmethod
     def reorder_save_pdf(input_path, output_path, page_order_data):
-        """
-        page_order_data: List of dicts {'original_index': int, 'rotation': int}
-        """
         reader = PdfReader(input_path)
         writer = PdfWriter()
-        
         for item in page_order_data:
             idx = item['original_index']
             rotation = item.get('rotation', 0)
-            
             if 0 <= idx < len(reader.pages):
                 page = reader.pages[idx]
                 if rotation != 0:
                     page.rotate(rotation)
                 writer.add_page(page)
-                
         with open(output_path, "wb") as f:
             writer.write(f)
 
     @staticmethod
     def images_to_pdf(image_list, output_path):
-        # Convert images to PDF
         processed_images = []
         temp_created = []
         for img_path in image_list:
             try:
                 img = Image.open(img_path)
-                # Ensure compatibility
                 if img.mode == 'RGBA' or img.format != 'JPEG':
                     img = img.convert('RGB')
                     temp_path = img_path + ".temp.jpg"
@@ -114,7 +99,6 @@ class PDFEngine:
 
     @staticmethod
     def pdf_to_images(input_path, output_folder, dpi=200, fmt="jpeg"):
-        # dpi param controls speed/quality
         images = convert_from_path(input_path, dpi=dpi)
         base_name = os.path.splitext(os.path.basename(input_path))[0]
         saved_files = []
@@ -127,12 +111,6 @@ class PDFEngine:
 
     @staticmethod
     def compress_pdf(input_path, output_path, level="medium"):
-        """
-        Levels:
-        - low: pypdf lossless (streams/metadata)
-        - medium: pikepdf (efficient optimization)
-        - extreme: rasterize to images (lossy, max reduction)
-        """
         if level == "low":
             reader = PdfReader(input_path)
             writer = PdfWriter()
@@ -142,28 +120,22 @@ class PDFEngine:
             writer.add_metadata(reader.metadata)
             with open(output_path, "wb") as f:
                 writer.write(f)
-
         elif level == "medium":
             try:
                 with pikepdf.open(input_path) as pdf:
                     pdf.save(output_path, compress_streams=True, object_stream_mode=pikepdf.ObjectStreamMode.generate)
             except Exception as e:
                 raise Exception(f"Pikepdf failed: {e}")
-
         elif level == "extreme":
-            # Rasterize pages to JPGs then back to PDF
             import tempfile, shutil
             temp_dir = tempfile.mkdtemp()
             try:
-                # 1. Convert to low-ish DPI images
                 imgs = PDFEngine.pdf_to_images(input_path, temp_dir, dpi=130, fmt="jpeg")
-                # 2. Convert back to PDF
                 with open(output_path, "wb") as f:
                     f.write(img2pdf.convert(imgs))
             finally:
                 shutil.rmtree(temp_dir)
 
-    # ... (Other conversion methods pdf_to_word, word_to_pdf, etc. remain the same)
     @staticmethod
     def pdf_to_word(input_path, output_path):
         cv = Converter(input_path)
@@ -208,11 +180,39 @@ class PDFEngine:
         prs.save(output_path)
 
     @staticmethod
-    def protect_pdf(input_path, output_path, password):
+    def protect_pdf(input_path, output_path, password, algorithm="AES-256"):
+        """
+        Algorithms: 'AES-256', 'AES-128', 'RC4-128'
+        """
         reader = PdfReader(input_path)
+        writer = PdfWriter()
+        writer.append_pages_from_reader(reader)
+        
+        # pypdf encryption logic
+        # For compatibility, we map our UI names to pypdf expected values if needed, 
+        # but pypdf handles standard strings well in modern versions.
+        writer.encrypt(user_password=password, algorithm=algorithm)
+        
+        with open(output_path, "wb") as f:
+            writer.write(f)
+
+    @staticmethod
+    def unlock_pdf(input_path, output_path, password):
+        """
+        Decrypts a PDF and saves it to output_path.
+        """
+        reader = PdfReader(input_path)
+        
+        if reader.is_encrypted:
+            success = reader.decrypt(password)
+            if not success:
+                raise Exception("Incorrect Password")
+        
         writer = PdfWriter()
         for page in reader.pages:
             writer.add_page(page)
-        writer.encrypt(password)
+            
         with open(output_path, "wb") as f:
             writer.write(f)
+        
+        return output_path
