@@ -1,37 +1,60 @@
 # Local-pdf-pro
-A powerful, offline desktop application that mimics the functionality of iLovePDF. Built with Python and PyQt6, this tool processes everything locally on your machine, ensuring your data never leaves your computer.
+A professional, offline desktop application for PDF management. Built with Python and PyQt6, this tool processes all data locally on your machine, ensuring maximum privacy and security for your documents. It mimics the functionality of premium online PDF tools but without file upload limits or data privacy concerns.
 
 ## Features
 
-**Organize & Edit**
-- **Merge PDF:** Combine multiple PDFs into a single file.
-- **Split PDF:** Extract all pages from a PDF into separate files.
-- **Visual Organize:** Grid view to drag-and-drop page reordering and deletion.
+### Dashboard & Navigation
+- **Grid Dashboard:** Quick access to all 16 tools upon launch.
+- **Sidebar Navigation:** Persistent access to tools with drag-and-drop support.
+- **Theme Toggle:** Switch between Dark Mode and Light Mode.
 
-**Convert to PDF**
-- **Images to PDF:** Convert JPG/PNG files to a single PDF.
-- **Word to PDF:** Convert `.docx` to PDF (Requires MS Word).
-- **PowerPoint to PDF:** Convert `.pptx` to PDF (Requires MS PowerPoint).
+### Core PDF Tools
+- **Merge PDF:** Combine multiple PDF files into a single document.
+- **Split PDF:** Advanced splitting options:
+    - Split all pages into separate files.
+    - Split by specific page ranges (e.g., 1-5, 8).
+    - Extract selected ranges into a new single PDF.
+- **Visual Organiser:** View page thumbnails to reorder, rotate (90 degrees left/right), or delete specific pages.
+- **Compress PDF:** Reduce file size with three levels of compression:
+    - Low (Lossless)
+    - Medium (Optimized)
+    - Extreme (Rasterize text to images for maximum reduction)
 
-**Convert from PDF**
-- **PDF to Image:** Extract pages as high-quality JPEGs.
-- **PDF to Word:** Convert PDF to editable `.docx` files.
+### Conversion Tools
+**To PDF:**
+- **Images to PDF:** Convert JPG/PNG files to PDF. Includes a "Smart Scan" feature with automatic edge detection and a manual corner adjustment tool for perspective correction.
+- **Word to PDF:** Convert .docx files to PDF (Requires Microsoft Word).
+- **PowerPoint to PDF:** Convert .pptx slides to PDF (Requires Microsoft PowerPoint).
+
+**From PDF:**
+- **PDF to Image:** Extract all pages as high-quality JPEG images.
+- **PDF to Word:** Convert PDF documents to editable .docx files.
 - **PDF to PowerPoint:** Convert PDF pages into PowerPoint slides.
 
-**Security**
-- **Protect PDF:** Encrypt your documents with a password.
+### Security
+- **Protect PDF:** Encrypt documents with a password. Choose from multiple encryption algorithms:
+    - AES-256 (Strongest)
+    - AES-128 (Standard)
+    - RC4-128 (Legacy compatibility)
+- **Unlock PDF:** Remove passwords from protected PDFs (requires knowing the original password) to save an unlocked copy.
+
+### Pro Features
+- **OCR (Optical Character Recognition):** Convert scanned PDFs or images into searchable, text-selectable PDFs using Tesseract.
+- **Watermark:** Add custom text watermarks to every page with adjustable opacity and rotation.
+- **Page Numbers:** Add "Page X of Y" numbering to the bottom-centre, bottom-right, or top-right of the document.
+- **Edit Metadata:** View and modify PDF properties including Title, Author, Subject, Producer, and Creator.
 
 ## Installation & Setup
 
 ### 1. Install Python Dependencies
-Run the following command in your terminal:
+Ensure you have Python installed. Run the following command in your terminal:
 ```bash
 pip install -r requirements.txt
 ```
 
 # Install External Tools (Crucial!)
 Some features rely on external tools to work correctly:
-**Poppler**(Required for Images/Thumbnails):
+## **Poppler**(Required for Images/Thumbnails):
 
 Download the latest binary from Poppler for Windows.
 
@@ -39,7 +62,15 @@ Extract the ZIP file to a folder (e.g., C:\Program Files\poppler).
 
 Add the bin folder (e.g., C:\Program Files\poppler\Library\bin) to your System PATH environment variable.
 
-**Microsoft Office (Optional):**
+## Tesseract OCR (Required for OCR features):
+
+Download and install Tesseract OCR.
+
+During installation, ensure "Add to Path" is checked.
+
+If the application cannot find Tesseract, update the path configuration in pdf_engine.py.
+
+## **Microsoft Office (Optional):**
 
 Microsoft Word is required for Word -> PDF conversion.
 
@@ -54,3 +85,16 @@ Bash
 ```
 python main.py
 ```
+
+## Technical Stack
+GUI: PyQt6
+
+PDF Manipulation: pypdf, pikepdf
+
+Image Processing: OpenCV, Pillow, pdf2image
+
+OCR: pytesseract (Tesseract Engine)
+
+Document Conversion: pdf2docx, docx2pdf, comtypes
+
+PDF Generation: reportlab, img2pdf
