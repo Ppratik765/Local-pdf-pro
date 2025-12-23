@@ -671,8 +671,52 @@ class OpenProtectedPage(BaseToolPage):
 
 class MergePage(BaseToolPage):
     def __init__(self):
-        super().__init__("Merge PDF", "Combine PDFs.")
-        self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.merge_pdfs, self.get_files(), QFileDialog.getSaveFileName(self, "S", "m.pdf", "PDF")[0]) if len(self.get_files())>1 else None)
+        super().__init__("Merge PDF", "Combine multiple PDFs. Reorder them using the buttons or drag and drop.")
+        
+        # 1. Enable Single Selection for easier reordering
+        self.file_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
+        # 2. Add Reorder Buttons
+        self.btn_up = QPushButton("⬆ Move Up")
+        self.btn_up.setProperty("class", "upload-btn")
+        self.btn_up.clicked.connect(self.move_up)
+        
+        self.btn_down = QPushButton("⬇ Move Down")
+        self.btn_down.setProperty("class", "upload-btn")
+        self.btn_down.clicked.connect(self.move_down)
+        
+        # Insert buttons into the control layout (after Add/Clear buttons)
+        self.ctl_layout.insertWidget(2, self.btn_up)
+        self.ctl_layout.insertWidget(3, self.btn_down)
+        
+        self.btn_process.clicked.connect(self.action)
+
+    def move_up(self):
+        """Moves the selected file up one position."""
+        row = self.file_list.currentRow()
+        if row > 0:
+            item = self.file_list.takeItem(row)
+            self.file_list.insertItem(row - 1, item)
+            self.file_list.setCurrentRow(row - 1)
+
+    def move_down(self):
+        """Moves the selected file down one position."""
+        row = self.file_list.currentRow()
+        if row >= 0 and row < self.file_list.count() - 1:
+            item = self.file_list.takeItem(row)
+            self.file_list.insertItem(row + 1, item)
+            self.file_list.setCurrentRow(row + 1)
+
+    def action(self):
+        # This gets the files in the EXACT order shown in the list
+        files = self.get_files()
+        
+        if len(files) < 2: 
+            return QMessageBox.warning(self, "Info", "Please select at least 2 files to merge.")
+            
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save Merged PDF", "merged.pdf", "PDF (*.pdf)")
+        if save_path: 
+            self.run_worker(PDFEngine.merge_pdfs, files, save_path)
 class PdfToImgPage(BaseToolPage):
     def __init__(self): super().__init__("PDF to JPG", "Extract.", "Extract"); self.btn_process.clicked.connect(lambda: self.run_worker(PDFEngine.pdf_to_images, self.get_files()[0], QFileDialog.getExistingDirectory(self, "Folder")) if self.get_files() else None)
 class PdfToWordPage(BaseToolPage):
@@ -689,6 +733,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Local PDF Pro")
+        self.setWindowIcon(QIcon("pdf.ico"))
         self.resize(1200, 850)
         self.is_dark = True
         self.setStyleSheet(DARK_THEME)
