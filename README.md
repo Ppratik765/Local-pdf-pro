@@ -1,6 +1,9 @@
 # Local-pdf-pro
 A professional, offline desktop application for PDF management. Built with Python and PyQt6, this tool processes all data locally on your machine, ensuring maximum privacy and security for your documents. It mimics the functionality of premium online PDF tools but without file upload limits or data privacy concerns.
 
+## Project Screenshot
+<img width="1919" height="1002" alt="image" src="https://github.com/user-attachments/assets/d0d64012-1cb7-4e57-9936-e783b6308117" />
+
 ## Features
 
 ### Dashboard & Navigation
