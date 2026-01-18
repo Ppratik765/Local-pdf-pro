@@ -84,8 +84,8 @@ Ensure main.py and pdf_engine.py are in the same directory.
 
 Run the application:
 
-Bash
-```
+
+```bash
 python main.py
 ```
 
