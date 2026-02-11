@@ -16,6 +16,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import inch
 from reportlab.lib import colors
+from playwright.sync_api import sync_playwright
 
 # Set Tesseract Path (Windows default or generic)
 # Users must install Tesseract-OCR and add to PATH, or set it here:
@@ -66,6 +67,51 @@ class PDFEngine:
             out_file = os.path.join(output_folder, f"{base_name}_extracted.pdf")
             with open(out_file, "wb") as f:
                 writer.write(f)
+
+   # Inside the PDFEngine class, add this method:
+    @staticmethod
+    def html_to_pdf(html_content, output_path):
+        """
+        Converts HTML to PDF using Headless Chromium (Playwright).
+        Supports Emojis, Flexbox, Grid, and modern CSS.
+        """
+        try:
+            with sync_playwright() as p:
+                # Launch the browser (headless means no UI window pops up)
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                
+                # Check if html_content is a full document; if not, wrap it
+                if "<html" not in html_content.lower():
+                     html_content = f"""
+                     <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <style>
+                                body {{ font-family: sans-serif; }}
+                            </style>
+                        </head>
+                        <body>
+                            {html_content}
+                        </body>
+                     </html>
+                     """
+
+                # Load the HTML content
+                page.set_content(html_content, wait_until="networkidle")
+                
+                # Print to PDF
+                # format='A4' or custom width/height
+                # print_background=True allows CSS background colors/images
+                page.pdf(path=output_path, format="A4", print_background=True, margin={"top": "20px", "bottom": "20px", "left": "20px", "right": "20px"})
+                
+                browser.close()
+                
+        except Exception as e:
+            # Catch errors (e.g., browser not installed)
+            if "Executable doesn't exist" in str(e):
+                raise Exception("Browser missing. Run 'playwright install chromium' in terminal.")
+            raise e
 
     @staticmethod
     def reorder_save_pdf(input_path, output_path, page_order_data):

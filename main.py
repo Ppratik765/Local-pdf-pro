@@ -10,7 +10,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QStackedWidget, QFileDialog, QMessageBox, QFrame,
                              QListWidgetItem, QAbstractItemView, QInputDialog, 
                              QLineEdit, QScrollArea, QComboBox, QRadioButton,
-                             QButtonGroup, QMenu, QDialog, QGridLayout, QCheckBox, QSizePolicy)
+                             QButtonGroup, QMenu, QDialog, QGridLayout, QCheckBox, QSizePolicy,
+                             QInputDialog, QLineEdit, QScrollArea, QTextEdit)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QSize, QSettings
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QIcon, QFont, QPixmap, QKeyEvent, QAction, QColor
 from pdf2image import convert_from_path
@@ -424,7 +425,8 @@ class DashboardPage(QWidget):
             ("Images to PDF", 5), ("Word to PDF", 6), ("PPT to PDF", 7),
             ("PDF to JPG", 8), ("PDF to Word", 9), ("PDF to PPT", 10),
             ("Protect PDF", 11), ("Unlock PDF", 12),
-            ("OCR Searchable", 13), ("Watermark", 14), ("Page Numbers", 15), ("Edit Metadata", 16)
+            ("OCR Searchable", 13), ("Watermark", 14), ("Page Numbers", 15), ("Edit Metadata", 16),
+            ("HTML to PDF", 17)
         ]
 
         row, col = 0, 0
@@ -506,7 +508,44 @@ class OCRPage(BaseToolPage):
         if not files: return
         save_path, _ = QFileDialog.getSaveFileName(self, "Save", "ocr.pdf", "PDF (*.pdf)")
         if save_path: self.run_worker(PDFEngine.ocr_pdf, files[0], save_path)
+class HtmlToPdfPage(BaseToolPage):
+    def __init__(self):
+        super().__init__("HTML to PDF (Pro)", "Render modern HTML/CSS with emoji support.", "Convert to PDF")
+        
+        self.file_list.setParent(None)
+        self.btn_upload.setParent(None)
+        self.btn_clear.setParent(None)
+        
+        # Modern Code Editor Style
+        self.text_area = QTextEdit()
+        self.text_area.setPlaceholderText("Paste full HTML or snippets here.\nSupports: Tailwind, Flexbox, Emojis (🚀), Custom Fonts...")
+        self.text_area.setAcceptRichText(False) # Force plain text handling
+        self.text_area.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e1e; 
+                color: #d4d4d4; 
+                border: 1px solid #3c3c3c; 
+                border-radius: 4px; 
+                padding: 10px; 
+                font-family: 'Consolas', 'Monaco', monospace;
+                font-size: 14px;
+                line-height: 1.5;
+            }
+        """)
+        
+        self.layout().insertWidget(3, self.text_area)
+        self.btn_process.clicked.connect(self.action)
 
+    def action(self):
+        html_content = self.text_area.toPlainText()
+        if not html_content.strip():
+            return QMessageBox.warning(self, "Input Required", "Please paste some HTML code.")
+            
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save PDF", "modern_render.pdf", "PDF (*.pdf)")
+        if save_path:
+            # The BaseToolPage worker will handle the threading, keeping the GUI responsive
+            self.run_worker(PDFEngine.html_to_pdf, html_content, save_path)
+            
 class WatermarkPage(BaseToolPage):
     def __init__(self):
         super().__init__("Watermark", "Add text overlay.", "Apply")
@@ -820,6 +859,7 @@ class MainWindow(QMainWindow):
         self.add_nav("Watermark", WatermarkPage()) # 14
         self.add_nav("Page Numbers", PageNumPage()) # 15
         self.add_nav("Edit Metadata", MetadataPage()) # 16
+        self.add_nav("HTML to PDF", HtmlToPdfPage()) # 17
 
         self.nav_layout.addStretch()        
         layout.addWidget(self.sidebar)
