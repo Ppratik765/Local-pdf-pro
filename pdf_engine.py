@@ -9,6 +9,7 @@ from pdf2docx import Converter
 from pdf2image import convert_from_path
 from docx2pdf import convert as docx_convert
 from PIL import Image
+import fitz
 import comtypes.client
 from pptx import Presentation
 import pikepdf
@@ -67,6 +68,52 @@ class PDFEngine:
             out_file = os.path.join(output_folder, f"{base_name}_extracted.pdf")
             with open(out_file, "wb") as f:
                 writer.write(f)
+    @staticmethod
+    def extract_images(pdf_path, output_dir):
+        """Feature 18: Extract raw images from PDF"""
+        doc = fitz.open(pdf_path)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        count = 0
+        for i in range(len(doc)):
+            for img in doc.get_page_images(i):
+                xref = img[0]
+                pix = fitz.Pixmap(doc, xref)
+                # Convert CMYK to RGB if needed
+                if pix.n - pix.alpha > 3:
+                    pix = fitz.Pixmap(fitz.csRGB, pix)
+                
+                out_path = os.path.join(output_dir, f"page{i+1}_img{xref}.png")
+                pix.save(out_path)
+                count += 1
+        return f"Extracted {count} images."
+
+    @staticmethod
+    def flatten_pdf(pdf_path, output_path):
+        """Feature 19: Flatten forms and annotations"""
+        doc = fitz.open(pdf_path)
+        for page in doc:
+            # Merges widgets, forms, and annotations into the page content
+            page.flatten_annotations()
+            page.clean_contents() 
+        doc.save(output_path)
+
+    @staticmethod
+    def convert_grayscale(pdf_path, output_path):
+        """Feature 20: Convert to Grayscale"""
+        doc = fitz.open(pdf_path)
+        for page in doc:
+            # Render page to a grayscale pixmap
+            pix = page.get_pixmap(colorspace=fitz.csGRAY)
+            # Create a new PDF page from this pixmap (replacing the old one)
+            # Note: This rasterizes vector content (text becomes image). 
+            # For vector-preserving grayscale, we need Ghostscript, 
+            # but this is the Python-only way.
+            page.set_mediabox(page.rect)
+            page.clean_contents()
+            page.insert_image(page.rect, pixmap=pix)
+        doc.save(output_path)
 
    # Inside the PDFEngine class, add this method:
     @staticmethod
