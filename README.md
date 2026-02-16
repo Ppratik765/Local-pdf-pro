@@ -73,15 +73,30 @@ To start the application, simply run the main script:
 python main.py
 ```
 
-## Technologies Used
-* Frontend: PyQt6 (Python bindings for Qt)
+## Building a Standalone Executable (.exe)
+You can package this entire application into a single .exe file so it can be run on any Windows machine without needing Python installed.
+1. Install PyInstaller:
+   
+   Ensure you have PyInstaller installed in your environment:
+   ```bash
+   pip install PyInstaller
+   ```
+2. Run the Build Command:
+   
+   Execute the following command in your terminal from the project's root directory. Ensure you have your pdf.ico icon file in the same folder.
+   ```bash
+   PyInstaller --noconsole --onefile --icon=pdf.ico --name="LocalPDFPro" --collect-all qtawesome main.py
+   ```
+   Command Breakdown:
+   * --noconsole: Hides the background terminal window when the app is running.
 
-* Icons: QtAwesome (FontAwesome integration)
+   * --onefile: Bundles all Python dependencies, libraries, and code into a single executable file.
 
-* PDF Manipulation: PyMuPDF (fitz), pypdf, pikepdf
+   * --icon=pdf.ico: Applies your custom icon to the executable.
 
-* Conversion: pdf2docx, pdf2image, docx2pdf, img2pdf
+   * --name="LocalPDFPro": Sets the output file name to LocalPDFPro.exe.
 
-* Rendering: Playwright (for HTML to PDF)
-
-* OCR: Tesseract (via pytesseract)
+   * --collect-all qtawesome: Ensures PyInstaller gathers the font files required to render the application's icons.
+3. Locate your App:
+   
+   Once the process finishes, navigate to the newly created dist folder. Inside, you will find your standalone LocalPDFPro.exe file ready to use or distribute.
