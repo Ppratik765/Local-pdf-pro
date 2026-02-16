@@ -3,7 +3,7 @@
 Local PDF Pro is a comprehensive, secure, and offline PDF toolkit built with Python and PyQt6. This tool processes all data locally on your machine, ensuring maximum privacy and security for your documents. It mimics the functionality of premium online PDF tools but without file upload limits or data privacy concerns.
 
 ## Project Screenshot
-<img width="1917" height="1001" alt="image" src="https://github.com/user-attachments/assets/77fe2483-933b-44e5-8063-23b34d01f0d6" />
+<img width="1919" height="1007" alt="Screenshot 2026-02-16 133442" src="https://github.com/user-attachments/assets/e87086f5-b9ba-4561-a34d-5b9bc22ebc4b" />
 
 ## Features
 
