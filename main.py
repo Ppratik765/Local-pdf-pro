@@ -12,15 +12,16 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QListWidgetItem, QAbstractItemView, QInputDialog, 
                              QLineEdit, QScrollArea, QComboBox, QRadioButton,
                              QButtonGroup, QMenu, QDialog, QGridLayout, QCheckBox, 
-                             QSizePolicy, QTextEdit, QToolButton)
+                             QSizePolicy, QTextEdit, QToolButton, 
+                             QStyleOption, QStyle)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QSize, QSettings
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QIcon, QFont, QPixmap, QKeyEvent, QAction, QColor
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QIcon, QFont, QPixmap, QKeyEvent, QAction, QColor, QPainter
 from pdf2image import convert_from_path
 
 # Import backend engine
 from pdf_engine import PDFEngine
 
-# --- UPDATED THEMES (Fixed Border Cutoff) ---
+# --- UPDATED THEMES (Guaranteed Tile Borders) ---
 DARK_THEME = """
 QMainWindow, QWidget#CentralWidget { background-color: #1e1e2e; }
 QFrame#Sidebar { background-color: #181825; border-right: 1px solid #313244; }
@@ -32,28 +33,30 @@ QLabel { color: #cdd6f4; font-family: 'Segoe UI', sans-serif; }
 QLabel#DashTitle { color: #89b4fa; font-weight: bold; }
 QLabel#DashDesc { color: #a6adc8; }
 
-/* Dashboard Cards (Dark) */
-QFrame.dash-card { 
-    background-color: #313244; border: 1px solid #45475a; border-radius: 16px; 
+/* Dashboard Cards - STRICT ID SELECTOR */
+QFrame#dashCard { 
+    background-color: #313244; 
+    border: 2px solid #45475a; 
+    border-radius: 12px; 
 }
-QFrame.dash-card:hover { 
-    background-color: #45475a; border-color: #89b4fa; 
-    /* Removed negative margin to fix top border clipping */
+QFrame#dashCard:hover { 
+    background-color: #45475a; 
+    border: 2px solid #89b4fa; /* Glowing blue border */
 }
 QLabel#CardTitle { color: #cdd6f4; font-weight: bold; font-size: 15px; }
 QLabel#CardDesc { color: #a6adc8; font-size: 12px; }
 
 /* List Widget & Sidebar */
-QListWidget { background-color: #181825; border: 2px dashed #45475a; border-radius: 12px; color: #cdd6f4; padding: 10px; }
-QListWidget::item { padding: 10px; border-radius: 8px; background-color: #313244; }
+QListWidget { background-color: #181825; border: 2px dashed #45475a; border-radius: 12px; color: #cdd6f4; padding: 5px; }
+QListWidget::item { padding: 6px; margin: 2px; border-radius: 6px; background-color: #313244; }
 QListWidget::item:selected { background-color: #cba6f7; color: #1e1e2e; }
 
 /* Buttons */
-QPushButton.nav-btn { background-color: transparent; color: #a6adc8; border: none; text-align: left; padding: 12px 20px; border-radius: 8px; }
-QPushButton.nav-btn:checked { background-color: #313244; color: #89b4fa; border-left: 4px solid #89b4fa; }
-QPushButton.nav-btn:hover { background-color: #313244; color: white; }
-QPushButton.action-btn { background-color: #89b4fa; color: #1e1e2e; border-radius: 8px; padding: 12px; font-weight: bold; border: none; }
-QPushButton.upload-btn { background-color: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 8px; padding: 8px 16px; }
+QPushButton[class="nav-btn"] { background-color: transparent; color: #a6adc8; border: none; text-align: left; padding: 12px 20px; border-radius: 8px; }
+QPushButton[class="nav-btn"]:checked { background-color: #313244; color: #89b4fa; border-left: 4px solid #89b4fa; font-weight: bold;}
+QPushButton[class="nav-btn"]:hover { background-color: #313244; color: white; }
+QPushButton[class="action-btn"] { background-color: #89b4fa; color: #1e1e2e; border-radius: 8px; padding: 12px; font-weight: bold; border: none; }
+QPushButton[class="upload-btn"] { background-color: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 8px; padding: 8px 16px; }
 QLineEdit, QComboBox, QTextEdit { background-color: #313244; border: 1px solid #45475a; color: white; padding: 10px; border-radius: 8px; }
 """
 
@@ -68,28 +71,30 @@ QLabel { color: #4c4f69; font-family: 'Segoe UI', sans-serif; }
 QLabel#DashTitle { color: #1e66f5; font-weight: bold; }
 QLabel#DashDesc { color: #6c6f85; }
 
-/* Dashboard Cards (Light) */
-QFrame.dash-card { 
-    background-color: white; border: 1px solid #bcc0cc; border-radius: 16px; 
+/* Dashboard Cards - STRICT ID SELECTOR */
+QFrame#dashCard { 
+    background-color: white; 
+    border: 2px solid #bcc0cc; 
+    border-radius: 12px; 
 }
-QFrame.dash-card:hover { 
-    background-color: #e6e9ef; border-color: #1e66f5; 
-    /* Removed negative margin to fix top border clipping */
+QFrame#dashCard:hover { 
+    background-color: #e6e9ef; 
+    border: 2px solid #1e66f5; /* Glowing blue border */
 }
 QLabel#CardTitle { color: #4c4f69; font-weight: bold; font-size: 15px; }
 QLabel#CardDesc { color: #6c6f85; font-size: 12px; }
 
 /* List Widget & Sidebar */
-QListWidget { background-color: white; border: 2px dashed #bcc0cc; border-radius: 12px; color: #4c4f69; padding: 10px; }
-QListWidget::item { padding: 10px; border-radius: 8px; background-color: #e6e9ef; }
+QListWidget { background-color: white; border: 2px dashed #bcc0cc; border-radius: 12px; color: #4c4f69; padding: 5px; }
+QListWidget::item { padding: 6px; margin: 2px; border-radius: 6px; background-color: #e6e9ef; }
 QListWidget::item:selected { background-color: #ea76cb; color: white; }
 
 /* Buttons */
-QPushButton.nav-btn { background-color: transparent; color: #5c5f77; border: none; text-align: left; padding: 12px 20px; border-radius: 8px; }
-QPushButton.nav-btn:checked { background-color: #dce0e8; color: #1e66f5; border-left: 4px solid #1e66f5; }
-QPushButton.nav-btn:hover { background-color: #dce0e8; color: #4c4f69; }
-QPushButton.action-btn { background-color: #1e66f5; color: white; border-radius: 8px; padding: 12px; font-weight: bold; border: none; }
-QPushButton.upload-btn { background-color: white; color: #4c4f69; border: 1px solid #bcc0cc; border-radius: 8px; padding: 8px 16px; }
+QPushButton[class="nav-btn"] { background-color: transparent; color: #5c5f77; border: none; text-align: left; padding: 12px 20px; border-radius: 8px; }
+QPushButton[class="nav-btn"]:checked { background-color: #dce0e8; color: #1e66f5; border-left: 4px solid #1e66f5; font-weight: bold;}
+QPushButton[class="nav-btn"]:hover { background-color: #dce0e8; color: #4c4f69; }
+QPushButton[class="action-btn"] { background-color: #1e66f5; color: white; border-radius: 8px; padding: 12px; font-weight: bold; border: none; }
+QPushButton[class="upload-btn"] { background-color: white; color: #4c4f69; border: 1px solid #bcc0cc; border-radius: 8px; padding: 8px 16px; }
 QLineEdit, QComboBox, QTextEdit { background-color: white; border: 1px solid #bcc0cc; color: #4c4f69; padding: 10px; border-radius: 8px; }
 """
 
@@ -116,48 +121,108 @@ class TaskWorker(threading.Thread):
         except Exception as e:
             self.signals.error.emit(str(e))
 
+class AppState:
+    """Manages global settings and analytics data persistence."""
+    _settings = QSettings("PDFToolkit", "LocalPDFPro")
+
+    @classmethod
+    def get_setting(cls, key, default):
+        return cls._settings.value(f"settings/{key}", default)
+
+    @classmethod
+    def set_setting(cls, key, value):
+        cls._settings.setValue(f"settings/{key}", value)
+
+    @classmethod
+    def log_usage(cls, tool_name, num_files=1):
+        """Increments usage stats for the dashboard."""
+        # Total files
+        total_files = int(cls._settings.value("stats/total_files", 0))
+        cls._settings.setValue("stats/total_files", total_files + num_files)
+        
+        # Total actions
+        total_actions = int(cls._settings.value("stats/total_actions", 0))
+        cls._settings.setValue("stats/total_actions", total_actions + 1)
+        
+        # Tool specific usage
+        usage_json = cls._settings.value("stats/tool_usage", "{}")
+        try: usage = json.loads(usage_json)
+        except: usage = {}
+        
+        usage[tool_name] = usage.get(tool_name, 0) + 1
+        cls._settings.setValue("stats/tool_usage", json.dumps(usage))
+        
 class DashboardCard(QFrame):
     clicked = pyqtSignal()
 
     def __init__(self, title, desc, icon_name, color="#89b4fa"):
         super().__init__()
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setProperty("class", "dash-card") 
-        self.setFrameShape(QFrame.Shape.StyledPanel)
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.icon_color = color
         
-        # Layout
+        # Responsive sizing
+        self.setMinimumSize(180, 140)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 20, 15, 20)
         layout.setSpacing(5)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # Icon
         self.icon_lbl = QLabel()
         self.icon_lbl.setPixmap(qta.icon(icon_name, color=color).pixmap(QSize(40, 40)))
         self.icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.icon_lbl.setStyleSheet("background: transparent; border: none;")
+        self.icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         
-        # Title
         self.title_lbl = QLabel(title)
-        self.title_lbl.setObjectName("CardTitle")
         self.title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         
-        # Description
         self.desc_lbl = QLabel(desc)
-        self.desc_lbl.setObjectName("CardDesc")
         self.desc_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.desc_lbl.setWordWrap(True)
         self.desc_lbl.setFixedHeight(45)
+        self.desc_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
         layout.addWidget(self.icon_lbl)
         layout.addWidget(self.title_lbl)
         layout.addWidget(self.desc_lbl)
 
+    def apply_theme(self, is_dark=True):
+        """Apply theme-specific styling with opacity"""
+        if is_dark:
+            self.setStyleSheet("""
+                DashboardCard {
+                    background-color: rgba(49, 50, 68, 0.6);  /* 60% opacity */
+                    border: 2px solid #45475a;
+                    border-radius: 12px;
+                }
+                DashboardCard:hover {
+                    background-color: rgba(69, 71, 90, 0.8);  /* 80% opacity on hover */
+                    border: 2px solid #89b4fa;
+                }
+            """)
+            self.title_lbl.setStyleSheet("color: #cdd6f4; font-weight: bold; font-size: 15px; background: transparent; border: none;")
+            self.desc_lbl.setStyleSheet("color: #a6adc8; font-size: 12px; background: transparent; border: none;")
+        else:
+            self.setStyleSheet("""
+                DashboardCard {
+                    background-color: rgba(255, 255, 255, 0.6);  /* 60% opacity */
+                    border: 2px solid #bcc0cc;
+                    border-radius: 12px;
+                }
+                DashboardCard:hover {
+                    background-color: rgba(230, 233, 239, 0.9);  /* 90% opacity on hover */
+                    border: 2px solid #1e66f5;
+                }
+            """)
+            self.title_lbl.setStyleSheet("color: #4c4f69; font-weight: bold; font-size: 15px; background: transparent; border: none;")
+            self.desc_lbl.setStyleSheet("color: #6c6f85; font-size: 12px; background: transparent; border: none;")
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
-
+                                                
 # --- CUSTOM WIDGETS ---
 class SidebarBtn(QPushButton):
     fileDropped = pyqtSignal(str)
@@ -424,6 +489,7 @@ class BaseToolPage(QWidget):
         return [self.file_list.item(i).data(Qt.ItemDataRole.UserRole) 
                 for i in range(self.file_list.count())]
 
+# UPDATE THESE METHODS IN BaseToolPage
     def run_worker(self, func, *args, **kwargs):
         success_callback = kwargs.pop('success_callback', None)
         self.btn_process.setEnabled(False)
@@ -431,48 +497,82 @@ class BaseToolPage(QWidget):
         self.lbl_status.setText("Working...")
         
         self.worker = TaskWorker(func, *args, **kwargs)
-        self.worker.signals.finished.connect(lambda _: self.on_worker_finished())
+        # Log usage to dashboard analytics
+        self.worker.signals.finished.connect(lambda _: self.on_worker_finished(self.__class__.__name__))
         self.worker.signals.error.connect(self.on_worker_error)
         if success_callback: 
             self.worker.signals.result_data.connect(success_callback)
         self.worker.start()
 
-    def on_worker_finished(self):
+    def on_worker_finished(self, tool_name="Generic Tool"):
         self.lbl_status.setText("Success!")
         self.btn_process.setText("Completed")
         self.btn_process.setEnabled(True)
+        
+        # Log analytics
+        num_files = self.file_list.count() if hasattr(self, 'file_list') else 1
+        AppState.log_usage(tool_name.replace("Page", ""), num_files)
+        
         from PyQt6.QtCore import QTimer
         QTimer.singleShot(3000, lambda: self.btn_process.setText("Process"))
-
     def on_worker_error(self, err):
         self.lbl_status.setText("Error.")
         self.btn_process.setText("Retry")
         self.btn_process.setEnabled(True)
         QMessageBox.critical(self, "Error", f"Details: {err}")
 
+class StatsCard(QFrame):
+    def __init__(self, title, value, icon_name, color="#89b4fa"):
+        super().__init__()
+        self.setStyleSheet(f"""
+            QFrame {{ background-color: {color}15; border: 1px solid {color}40; border-radius: 12px; }}
+        """)
+        # Remove Fixed Size so it stretches evenly across the screen
+        self.setFixedHeight(110)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 15, 20, 15)
+        
+        top_row = QHBoxLayout()
+        icon = QLabel()
+        icon.setPixmap(qta.icon(icon_name, color=color).pixmap(28, 28))
+        icon.setStyleSheet("border: none; background: transparent;")
+        
+        self.val_lbl = QLabel(str(value))
+        self.val_lbl.setFont(QFont("Segoe UI", 26, QFont.Weight.Bold))
+        self.val_lbl.setStyleSheet(f"color: {color}; border: none; background: transparent;")
+        
+        top_row.addWidget(icon)
+        top_row.addStretch()
+        top_row.addWidget(self.val_lbl)
+        
+        title_lbl = QLabel(title)
+        title_lbl.setStyleSheet("color: #a6adc8; font-size: 14px; font-weight: bold; border: none; background: transparent;")
+        
+        layout.addLayout(top_row)
+        layout.addWidget(title_lbl)
+
 class DashboardPage(QWidget):
     def __init__(self, nav_callback):
         super().__init__()
         self.nav_callback = nav_callback
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.cards = []  # Store card references
         
-        # Scroll Area Setup
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("background: transparent; border: none;")
         
-        # Content Widget
-        content_widget = QWidget()
-        content_widget.setObjectName("DashboardContent")
-        content_widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        content = QWidget()
+        content.setObjectName("DashboardContent")
+        content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(50, 40, 50, 50)
         
-        layout = QVBoxLayout(content_widget)
-        layout.setContentsMargins(50, 50, 50, 50)
-        layout.setSpacing(30)
-        
-        # Header Section
+        # 1. Dashboard Header
         header_box = QVBoxLayout()
-        header_box.setSpacing(10)
+        header_box.setSpacing(5)
         
         title = QLabel("Local PDF Pro")
         title.setObjectName("DashTitle")
@@ -487,33 +587,41 @@ class DashboardPage(QWidget):
         header_box.addWidget(title)
         header_box.addWidget(desc)
         layout.addLayout(header_box)
-        layout.addSpacing(20)
-
-        # Tools Grid
+        layout.addSpacing(30)
+        
+        # 2. Analytics Cards
+        stats_layout = QHBoxLayout()
+        stats_layout.setSpacing(20)
+        
+        total_files = AppState.get_setting("total_files", 0)
+        total_actions = AppState.get_setting("total_actions", 0)
+        
+        stats_layout.addWidget(StatsCard("Files Processed", total_files, "fa5s.file-pdf", "#89b4fa"))
+        stats_layout.addWidget(StatsCard("Automations Run", total_actions, "fa5s.robot", "#a6e3a1"))
+        stats_layout.addWidget(StatsCard("Space Saved (Est)", f"~{int(total_actions)*1.2}MB", "fa5s.hdd", "#f38ba8"))
+        
+        layout.addLayout(stats_layout)
+        layout.addSpacing(40) 
+        
+        # 3. Tools Grid (20 Cards)
         grid = QGridLayout()
         grid.setSpacing(20)
         
-        # UPDATED ORDER TO MATCH MAIN WINDOW sidebar logic exactly
-        # 1-based index maps to the stack index
         tools = [
             ("Merge PDF", 1, "fa5s.layer-group", "Combine multiple PDFs into one document."),
             ("Visual Organize", 2, "fa5s.th", "Reorder, rotate, or remove pages visually."),
             ("Split PDF", 3, "fa5s.cut", "Split a PDF into separate files or pages."),
             ("Compress PDF", 4, "fa5s.compress-arrows-alt", "Reduce file size while keeping quality."),
             ("Page Numbers", 5, "fa5s.list-ol", "Add page numbering to your document."),
-            
             ("Images to PDF", 6, "fa5s.images", "Convert JPG, PNG images to PDF."),
             ("Word to PDF", 7, "fa5s.file-word", "Convert DOCX documents to PDF."),
             ("PPT to PDF", 8, "fa5s.file-powerpoint", "Convert PowerPoint presentations to PDF."),
             ("HTML to PDF", 9, "fa5s.code", "Convert HTML code or files to PDF."),
-
             ("PDF to JPG", 10, "fa5s.file-image", "Extract pages as high-quality images."),
             ("PDF to Word", 11, "fa5s.file-alt", "Convert PDF to editable Word docs."),
             ("PDF to PPT", 12, "fa5s.file-powerpoint", "Convert PDF to PowerPoint slides."),
-            
             ("Protect PDF", 13, "fa5s.lock", "Encrypt PDF with a password."),
             ("Unlock PDF", 14, "fa5s.unlock", "Remove passwords from PDFs."),
-            
             ("OCR Searchable", 15, "fa5s.search", "Make scanned documents text-searchable."),
             ("Watermark", 16, "fa5s.stamp", "Add text or image stamps to pages."),
             ("Edit Metadata", 17, "fa5s.info-circle", "Modify title, author, and creator info."),
@@ -525,27 +633,198 @@ class DashboardPage(QWidget):
         row, col = 0, 0
         for name, idx, icon, desc_text in tools:
             card = DashboardCard(name, desc_text, icon)
-            # Use closure to capture loop variable 'idx'
+            card.apply_theme(is_dark=True)  # Apply initial dark theme
             card.clicked.connect(lambda i=idx: self.nav_callback(i))
-            
+            self.cards.append(card)  # Store reference
             grid.addWidget(card, row, col)
-            
             col += 1
-            if col > 3: # 4 columns wide
+            if col > 3: 
                 col = 0
                 row += 1
         
         layout.addLayout(grid)
         layout.addStretch()
         
-        scroll.setWidget(content_widget)
-        
+        scroll.setWidget(content)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0,0,0,0)
         main_layout.addWidget(scroll)
-        
+    
+    def apply_theme(self, is_dark=True):
+        """Update all cards when theme changes"""
+        for card in self.cards:
+            card.apply_theme(is_dark)
 # --- PAGE CLASSES ---
 
+class SettingsPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(50, 50, 50, 50)
+        layout.setSpacing(20)
+        
+        head_lbl = QLabel("Global Settings")
+        head_lbl.setFont(QFont("Segoe UI", 26, QFont.Weight.Bold))
+        layout.addWidget(head_lbl)
+        
+        form_layout = QGridLayout()
+        form_layout.setSpacing(15)
+        
+        # Default Directory
+        lbl_dir = QLabel("Default Output Folder:")
+        self.inp_dir = QLineEdit(AppState.get_setting("default_dir", ""))
+        btn_dir = QPushButton("Browse")
+        btn_dir.setProperty("class", "upload-btn")
+        btn_dir.clicked.connect(self.browse_dir)
+        
+        form_layout.addWidget(lbl_dir, 0, 0)
+        form_layout.addWidget(self.inp_dir, 0, 1)
+        form_layout.addWidget(btn_dir, 0, 2)
+        
+        # Auto-Open Toggle
+        self.chk_open = QCheckBox("Automatically open files after processing")
+        self.chk_open.setChecked(AppState.get_setting("auto_open", "false") == "true")
+        form_layout.addWidget(self.chk_open, 1, 0, 1, 2)
+        
+        layout.addLayout(form_layout)
+        
+        btn_save = QPushButton("Save Preferences")
+        btn_save.setProperty("class", "action-btn")
+        btn_save.setFixedWidth(200)
+        btn_save.clicked.connect(self.save_settings)
+        layout.addWidget(btn_save)
+        layout.addStretch()
+        
+    def browse_dir(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Default Output Folder")
+        if folder: self.inp_dir.setText(folder)
+        
+    def save_settings(self):
+        AppState.set_setting("default_dir", self.inp_dir.text())
+        AppState.set_setting("auto_open", "true" if self.chk_open.isChecked() else "false")
+        QMessageBox.information(self, "Saved", "Settings saved successfully!")
+        
+class WorkflowPage(BaseToolPage):
+    def __init__(self):
+        super().__init__("Automation Pipeline", "Chain multiple tools to run sequentially on your files.", "Run Pipeline")
+        
+        pipe_container = QWidget()
+        pipe_layout = QHBoxLayout(pipe_container)
+        
+        # 1. Available Tools List
+        self.avail_list = QListWidget()
+        self.avail_list.setIconSize(QSize(20, 20)) # Slightly smaller icon
+        self.avail_list.setSpacing(2)
+        
+        # Extended Nodes with Icons
+        self.avail_nodes = [
+            ("Grayscale", "fa5s.tint-slash"),
+            ("Flatten", "fa5s.clone"),
+            ("Compress (Low)", "fa5s.compress-arrows-alt"),
+            ("Compress (Medium)", "fa5s.compress-arrows-alt"),
+            ("Compress (Extreme)", "fa5s.compress"),
+            ("Extract Images", "fa5s.images"),
+            ("OCR (Searchable PDF)", "fa5s.search"),
+            ("Add Page Numbers", "fa5s.list-ol"),
+            ("Watermark (Draft)", "fa5s.stamp"),
+            ("Clear Metadata", "fa5s.eraser")
+        ]
+        
+        for name, icon in self.avail_nodes:
+            item = QListWidgetItem(f"  {name}")
+            item.setIcon(qta.icon(icon, color="#89b4fa"))
+            item.setSizeHint(QSize(0, 36)) # <--- FIX: Forces height so they don't overlap
+            self.avail_list.addItem(item)
+        
+        # 2. Add / Remove Buttons
+        btn_col = QVBoxLayout()
+        self.btn_add = QPushButton("Add ➡")
+        self.btn_add.setProperty("class", "upload-btn")
+        self.btn_add.clicked.connect(lambda: self.move_item(self.avail_list, self.pipe_list))
+        
+        self.btn_rem = QPushButton("⬅ Remove")
+        self.btn_rem.setProperty("class", "upload-btn")
+        self.btn_rem.clicked.connect(lambda: self.move_item(self.pipe_list, self.avail_list))
+        
+        btn_col.addStretch()
+        btn_col.addWidget(self.btn_add)
+        btn_col.addWidget(self.btn_rem)
+        btn_col.addStretch()
+        
+        # 3. Execution Pipeline List
+        self.pipe_list = QListWidget()
+        self.pipe_list.setIconSize(QSize(20, 20))
+        self.pipe_list.setSpacing(2)
+        
+        # Add labels to layout
+        col1 = QVBoxLayout()
+        col1.addWidget(QLabel("Available Nodes:\n(Select & Add)"))
+        col1.addWidget(self.avail_list)
+        
+        col3 = QVBoxLayout()
+        col3.addWidget(QLabel("Execution Pipeline:\n(Top to Bottom)"))
+        col3.addWidget(self.pipe_list)
+        
+        pipe_layout.addLayout(col1)
+        pipe_layout.addLayout(btn_col)
+        pipe_layout.addLayout(col3)
+        
+        self.layout().insertWidget(4, pipe_container)
+        self.btn_process.clicked.connect(self.action)
+
+    def move_item(self, source, dest):
+        item = source.currentItem()
+        if item:
+            # Create a clone so it keeps its icon and height
+            new_item = QListWidgetItem(item.text())
+            new_item.setIcon(item.icon())
+            new_item.setSizeHint(QSize(0, 36)) # <--- FIX: Apply height to moved items too
+            dest.addItem(new_item)
+            source.takeItem(source.row(item))
+
+    def action(self):
+        files = self.get_files()
+        steps = [self.pipe_list.item(i).text().strip() for i in range(self.pipe_list.count())]
+        
+        if not files or not steps:
+            return QMessageBox.warning(self, "Error", "Add files and at least 1 pipeline step.")
+            
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save Result", "pipeline_output.pdf", "PDF (*.pdf)")
+        if save_path:
+            self.run_worker(self.execute_pipeline, files[0], save_path, steps)
+
+    def execute_pipeline(self, input_file, final_output, steps):
+        current_in = input_file
+        temp_files = []
+        
+        try:
+            for i, step_name in enumerate(steps):
+                is_last = (i == len(steps) - 1)
+                current_out = final_output if is_last else tempfile.mktemp(suffix=".pdf")
+                if not is_last: temp_files.append(current_out)
+                
+                # Route step to proper PDFEngine function
+                if step_name == "Grayscale": PDFEngine.convert_grayscale(current_in, current_out)
+                elif step_name == "Flatten": PDFEngine.flatten_pdf(current_in, current_out)
+                elif step_name == "Compress (Low)": PDFEngine.compress_pdf(current_in, current_out, "low")
+                elif step_name == "Compress (Medium)": PDFEngine.compress_pdf(current_in, current_out, "medium")
+                elif step_name == "Compress (Extreme)": PDFEngine.compress_pdf(current_in, current_out, "extreme")
+                elif step_name == "OCR (Searchable PDF)": PDFEngine.ocr_pdf(current_in, current_out)
+                elif step_name == "Add Page Numbers": PDFEngine.add_page_numbers(current_in, current_out, "bottom-center")
+                elif step_name == "Watermark (Draft)": PDFEngine.add_watermark(current_in, current_out, "DRAFT")
+                elif step_name == "Clear Metadata": PDFEngine.update_metadata(current_in, current_out, {})
+                elif step_name == "Extract Images": 
+                    PDFEngine.extract_images(current_in, os.path.dirname(final_output))
+                    if not is_last: shutil.copy(current_in, current_out)
+                else:
+                    if not is_last: shutil.copy(current_in, current_out)
+                    
+                current_in = current_out
+        finally:
+            for f in temp_files:
+                try: os.remove(f)
+                except: pass
+                                
 class HtmlToPdfPage(BaseToolPage):
     def __init__(self):
         super().__init__("HTML to PDF (Pro)", "Render modern HTML/CSS with emoji support.", "Convert to PDF")
@@ -942,7 +1221,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Sidebar
+        # Sidebar Setup
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
         self.sidebar.setFixedWidth(280)
@@ -970,23 +1249,29 @@ class MainWindow(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         nav_content = QWidget()
-        nav_content.setObjectName("SidebarContent") # <--- ID for styling
-        nav_content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True) # <--- Enable styling
-        nav_content.setStyleSheet("background-color: transparent;") # <--- Force transparent
+        nav_content.setObjectName("SidebarContent")
+        nav_content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        nav_content.setStyleSheet("background-color: transparent;")
         self.nav_layout = QVBoxLayout(nav_content)
         self.nav_layout.setContentsMargins(0, 0, 0, 0)
         self.nav_layout.setSpacing(5)
         scroll.setWidget(nav_content)
         sidebar_layout.addWidget(scroll)
         
-        btn_home = SidebarBtn(" Dashboard", "fa5s.home")
-        btn_home.clicked.connect(lambda: self.stack.setCurrentIndex(0))
-        self.nav_layout.addWidget(btn_home)
+        # --- FIX: TRACK BUTTONS EARLY ---
+        self.btns = [] # Initialize tracking list here
+        self.stack = QStackedWidget()
+        
+        # Create Home Button, add to tracking list, and link to Stack Index 0
+        self.btn_home = SidebarBtn(" Dashboard", "fa5s.home")
+        self.btns.append(self.btn_home) # Index 0 in self.btns
+        self.btn_home.setChecked(True)  # Highlight it by default
+        
+        self.btn_home.clicked.connect(lambda: self.switch_view(0, self.btn_home))
+        self.nav_layout.addWidget(self.btn_home)
         self.nav_layout.addSpacing(10)
 
-        self.stack = QStackedWidget()
-        self.btns = []
-        
+        # 0. Dashboard Widget
         self.stack.addWidget(DashboardPage(self.go_to_tool))
 
         self.add_section("MOST USED")
@@ -995,14 +1280,12 @@ class MainWindow(QMainWindow):
         self.add_nav("Split PDF", SplitPage(), "fa5s.cut")
         self.add_nav("Compress PDF", CompressPage(), "fa5s.compress-arrows-alt")
         self.add_nav("Page Numbers", PageNumPage(), "fa5s.list-ol")
-
         
         self.add_section("CONVERT TO PDF")
         self.add_nav("Images to PDF", ImgToPdfPage(), "fa5s.images")
         self.add_nav("Word to PDF", WordToPdfPage(), "fa5s.file-word")
         self.add_nav("PPT to PDF", PptxToPdfPage(), "fa5s.file-powerpoint")
         self.add_nav("HTML to PDF", HtmlToPdfPage(), "fa5s.code")
-
         
         self.add_section("CONVERT FROM PDF")
         self.add_nav("PDF to JPG", PdfToImgPage(), "fa5s.file-image")
@@ -1020,16 +1303,27 @@ class MainWindow(QMainWindow):
         self.add_nav("Extract Images", ExtractImagesPage(), "fa5s.images")
         self.add_nav("Flatten PDF", FlattenPdfPage(), "fa5s.clone")
         self.add_nav("Grayscale PDF", GrayscalePdfPage(), "fa5s.tint-slash")
+        
+        self.add_section("AUTOMATION")
+        self.add_nav("Pipeline Builder", WorkflowPage(), "fa5s.project-diagram") 
+
+        self.add_section("SYSTEM")
+        self.add_nav("Global Settings", SettingsPage(), "fa5s.cog") 
 
         self.nav_layout.addStretch()        
         layout.addWidget(self.sidebar)
         layout.addWidget(self.stack)
 
+    # --- REST OF CLASS REMAINS THE SAME ---
     def toggle_theme(self):
         self.is_dark = not self.is_dark
         self.setStyleSheet(DARK_THEME if self.is_dark else LIGHT_THEME)
         self.toggle_btn.setIcon(qta.icon('fa5s.moon' if self.is_dark else 'fa5s.sun', color="#4c4f69" if not self.is_dark else "white"))
-
+        
+        # Update dashboard cards theme
+        dashboard = self.stack.widget(0)  # Dashboard is at index 0
+        if hasattr(dashboard, 'apply_theme'):
+            dashboard.apply_theme(self.is_dark)
     def add_section(self, text):
         lbl = QLabel(text)
         lbl.setStyleSheet("font-weight: bold; font-size: 11px; margin-top: 15px; margin-left: 10px; opacity: 0.7;")
@@ -1041,7 +1335,7 @@ class MainWindow(QMainWindow):
         btn.clicked.connect(lambda: self.switch_view(idx, btn))
         btn.fileDropped.connect(lambda f: self.open_tool_with_file(idx, btn, f))
         self.nav_layout.addWidget(btn)
-        self.btns.append(btn)
+        self.btns.append(btn) # Appends to index 1, 2, 3... perfectly matching the stack!
 
     def switch_view(self, idx, active_btn):
         self.stack.setCurrentIndex(idx)
@@ -1055,11 +1349,12 @@ class MainWindow(QMainWindow):
             widget.file_list.addItems([file_path])
     
     def go_to_tool(self, idx):
-        if 0 < idx <= len(self.btns):
-            self.btns[idx-1].click()
+        if 0 <= idx < len(self.btns): # Changed to 0 <= idx so Dashboard works too!
+            self.btns[idx].click()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
+    
